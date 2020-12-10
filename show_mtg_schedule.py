@@ -18,8 +18,8 @@ import traceback
 
 
 # データのイメージ
-# リストでもたせる。[['開始時刻', '終了時刻'], ['開始時刻', '終了時刻'], ['開始時刻', '終了時刻'], ...]
-#list_dict_mtg = [{'start_time': '11:00', 'end_time': '12:00'}, {'start_time': '13:00', 'end_time': '13:30'}, {'start_time': '15:00', 'end_time': '16:00'}]
+# 辞書をリストで持たせる。[['開始時刻', '終了時刻'], ['開始時刻', '終了時刻'], ['開始時刻', '終了時刻'], ...]
+list_dict_mtg = [{'start_time': datetime.time(10, 0), 'end_time': datetime.time(11, 0)}, {'start_time': datetime.time(13, 0), 'end_time': datetime.time(14, 0)}, {'start_time': datetime.time(15, 0), 'end_time': datetime.time(16, 30)}]
 
 ################# `.ics`を読み込んでMTG時間を取得 ################
 def get_schedule_list():
@@ -47,7 +47,7 @@ def get_schedule_list():
         start_hhmm = (datetime.datetime.strptime(start_hhmm, '%H%M') + datetime.timedelta(hours=9)).time()
         end_hhmm = (datetime.datetime.strptime(end_hhmm, '%H%M') + datetime.timedelta(hours=9)).time()
 
-        # 2重のリストにい変換
+        # 2重のリストに変換
         list_mtg_schedule.append([start_hhmm, end_hhmm])
 
     # リストを並べ替え
@@ -70,11 +70,13 @@ def get_schedule_list():
 def draw_schedule(list_mtg_schedule):
     list_notfinished = []
 
-    # 終了済みMTGの削除
-    for i in list_mtg_schedule[:5]:
+    # 開始時間到来前のMTG一覧の取得（表示可能な最大MTG数は6件）
+    for i in list_mtg_schedule[:6]:
         if i['status'] != 2:
-            list_notfinished.append([i['start_time'].strftime('%H:%M') + ' - ' +i['end_time'].strftime('%H:%M'), i['status']])
+            # list_notfinishedのリスト1つ分の中身は、['10:00 - 11:00', 0]になるイメージ
+            list_notfinished.append([i['start_time'].strftime('%H:%M') + ' - ' + i['end_time'].strftime('%H:%M'), i['status']])
 
+    # 6件分の描画を行うため、MTG数が6件に満たない場合は空欄を入れる
     for j in range(6 - len(list_notfinished)):
         list_notfinished.append(['', ''])
 
@@ -97,7 +99,7 @@ def draw_schedule(list_mtg_schedule):
             LRedimage = Image.new('1', (epd.width, epd.height), 255)  # 126*298
             drawblack = ImageDraw.Draw(LBlackimage)
             drawred = ImageDraw.Draw(LRedimage)
-            
+            # drawredが赤枠表示の意味
             drawred.rectangle((0, 0, 176, 12), fill = 0) # 上の枠
             drawred.rectangle((0, 0, 12, 264), fill = 0) # 左の枠
             drawred.rectangle((0, 252, 176, 264), fill = 0) # 下の枠
@@ -159,63 +161,59 @@ def draw_schedule(list_mtg_schedule):
 ################# MTG一覧表示関数の実行 ################
 
 # MTG一覧の取得
-list_dict_mtg = get_schedule_list()
+#list_dict_mtg = get_schedule_list()
 for h in list_dict_mtg:
+    # 各MTGのリストにステータスを代入（0: MTG前, 1: MTG中, 2: MTG終了）
     h['status'] = 0
 
-print(list_dict_mtg)
+#print(list_dict_mtg)
 
 
-# MTGステータスの初期値を格納
+# MTGステータスの合計値を初期値として格納
 sum_status = sum([j['status'] for j in list_dict_mtg])
+# 電子ペーパーの描画
 draw_schedule(list_dict_mtg)
 
-# 実際に動かすところ
+# 実際に動かすところ。大きく2つに分かれ、①MTGステータス更新があるか確認、②MTGステータスがある場合、電子ペーパーに描画する。
+# 30秒おきにループさせ、さらに時間順に並んだMTGリストの中から、開始時間をすぎかつ終了時間までのMTGがあれば赤枠を描画し、終了時間が過ぎれば一覧を表示する
 while True:
-    # ファイルを毎回とってくる
-
-    # 終了時刻が過ぎていないものをとってくる
-    i = []
+    # 各MTGをループで回し、全MTGについてステータス更新があるか確認
     for i in list_dict_mtg:
         current_time = datetime.datetime.now().time()
+        # MTG開始3分前からMTG中と表示するようにする
         start_time = (datetime.datetime.combine(datetime.date.today(), i['start_time']) - datetime.timedelta(minutes=3)).time()
         end_time = i['end_time']
         if i['status'] == 1:
-            # ステータス1でも終了時刻になったら、ステータス更新。MTG一覧表示に変更
+            # ステータス1で終了時刻になったら、ステータスを2に変更
             if end_time < current_time:
                 print('MTG終わったね')
                 print('MTG一覧を表示するようにするよ。')
                 i['status'] = 2
                 print(i)
                 print(list_dict_mtg)
-                ################# MTG一覧表示関数の実行 ################
-                #draw_schedule(list_mtg)
             else:
                 print('すでにMTG中と表示されてるね。')
                 print(i)
-
+        # 開始時刻を過ぎ、終了時間前のMTGについて、ステータスを1に変更
         elif start_time < current_time and current_time < end_time:
             print('始まるよ')
             print('電子ペーパーでMTG中って表示するよ。')
             i['status'] = 1
             print(i)
             print(list_dict_mtg)
-            ################# MTG中！！って表示する関数の実行 ################
-            #draw_schedule(list_mtg)
         elif current_time < start_time:
             print('まだ始まってないよ')
             print(i)
-
         else:
             print('もう終わったよ')
             i['status'] = 2
             print(i)
 
-    # MTGステータスが前回から変更されている場合のみ、電子ペーパーに描画
+    # MTGステータスの合計値が前回から変更されている場合のみ、電子ペーパーに描画
     if sum_status != sum([j['status'] for j in list_dict_mtg]):
         # 電子ペーパーに描画
         draw_schedule(list_dict_mtg)
-        # MTGステータスの更新
+        # MTGステータス合計値の更新
         sum_status = sum([j['status'] for j in list_dict_mtg])
 
     time.sleep(30)
