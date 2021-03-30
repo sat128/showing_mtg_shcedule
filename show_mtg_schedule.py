@@ -19,7 +19,7 @@ import traceback
 
 # データのイメージ
 # 辞書をリストで持たせる。[['開始時刻', '終了時刻'], ['開始時刻', '終了時刻'], ['開始時刻', '終了時刻'], ...]
-list_dict_mtg = [{'start_time': datetime.time(10, 0), 'end_time': datetime.time(11, 0)}, {'start_time': datetime.time(13, 0), 'end_time': datetime.time(14, 0)}, {'start_time': datetime.time(15, 0), 'end_time': datetime.time(16, 30)}]
+#list_dict_mtg = [{'start_time': datetime.time(10, 0), 'end_time': datetime.time(11, 0)}, {'start_time': datetime.time(13, 0), 'end_time': datetime.time(14, 0)}, {'start_time': datetime.time(15, 0), 'end_time': datetime.time(16, 30)}]
 
 ################# `.ics`を読み込んでMTG時間を取得 ################
 def get_schedule_list():
@@ -43,15 +43,19 @@ def get_schedule_list():
         start_hhmm = re.findall('T(\d{6})Z', dtstart[0])[0][0:4]
         end_hhmm = re.findall('T(\d{6})Z', dtend[0])[0][0:4]
 
-        # time型に変換し、UTCから9時間足して日本時間に変更
-        start_hhmm = (datetime.datetime.strptime(start_hhmm, '%H%M') + datetime.timedelta(hours=9)).time()
-        end_hhmm = (datetime.datetime.strptime(end_hhmm, '%H%M') + datetime.timedelta(hours=9)).time()
+#        # time型に変換し、UTCから9時間足して日本時間に変更
+#        start_hhmm = (datetime.datetime.strptime(start_hhmm, '%H%M') + datetime.timedelta(hours=9)).time()
+#        end_hhmm = (datetime.datetime.strptime(end_hhmm, '%H%M') + datetime.timedelta(hours=9)).time()
+
+        # time型に変換
+        start_hhmm = (datetime.datetime.strptime(start_hhmm, '%H%M')).time()
+        end_hhmm = (datetime.datetime.strptime(end_hhmm, '%H%M')).time()
 
         # 2重のリストに変換
         list_mtg_schedule.append([start_hhmm, end_hhmm])
 
     # リストを並べ替え
-    list_mtg_schedule.sort()
+    list_mtg_schedule.sort()     
 
     # 辞書を入れるためのリストを作成
     list_dict_mtg = []
@@ -161,7 +165,7 @@ def draw_schedule(list_mtg_schedule):
 ################# MTG一覧表示関数の実行 ################
 
 # MTG一覧の取得
-#list_dict_mtg = get_schedule_list()
+list_dict_mtg = get_schedule_list()
 for h in list_dict_mtg:
     # 各MTGのリストにステータスを代入（0: MTG前, 1: MTG中, 2: MTG終了）
     h['status'] = 0
